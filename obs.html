@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Video P2P para OBS</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        body { margin: 0; background: black; overflow: hidden; }
+        #video { width: 100vw; height: 100vh; object-fit: contain; }
+    </style>
+</head>
+<body>
+    <video id="video" autoplay playsinline muted></video>
+    
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const mobileId = urlParams.get('id') || 'MIVIDEO';
+        
+        const peer = new Peer({
+            host: '0.peerjs.com', port: 443, path: '/peerjs'
+        });
+
+        peer.on('open', (id) => {
+            console.log('PC ID:', id, 'Conectando a celular:', mobileId);
+            navigator.mediaDevices.getUserMedia({video: false, audio: false })
+                .then(() => {
+                    const call = peer.call(mobileId, new MediaStream());
+                    call.on('stream', (remoteStream) => {
+                        document.getElementById('video').srcObject = remoteStream;
+                    });
+                });
+        });
+    </script>
+</body>
+</html>
