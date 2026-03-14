@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hub P2P Celular → PC</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>📱 Celular → 💻 PC Video P2P</h1>
+        <div id="status">Conectando...</div>
+        
+        <div class="controls">
+            <div class="mode-selector">
+                <button id="mobileMode" class="mode-btn active">📱 MODO CELULAR (envía video)</button>
+                <button id="pcMode" class="mode-btn">💻 MODO PC (recibe video)</button>
+            </div>
+            
+            <div id="mobileControls">
+                <button id="startBtn">▶️ Iniciar stream en celular</button>
+                <input id="hostId" placeholder="Tu ID aparecerá aquí" readonly>
+                <p class="instruction">Copia esta ID y pégala en la PC</p>
+            </div>
+            
+            <div id="pcControls" style="display:none;">
+                <input id="connectId" placeholder="ID del celular">
+                <button id="connectBtn">Conectar a celular</button>
+            </div>
+        </div>
+        
+        <div class="videos">
+            <video id="localVideo" class="video local" autoplay muted playsinline></video>
+            <div id="remoteContainer">
+                <video id="remoteVideo" class="video remote" autoplay playsinline></video>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
