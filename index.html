@@ -3,43 +3,130 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hub P2P Celular → PC + OBS</title>
+    <title>Celular → PC + OBS</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <link rel="stylesheet" href="style.css">
+    <style>
+        body { 
+            font-family: Arial; 
+            text-align: center; 
+            background: #f0f0f0; 
+            padding: 20px; 
+            max-width: 500px; 
+            margin: auto;
+        }
+        video { width: 100%; max-width: 400px; height: 300px; border-radius: 10px; }
+        #status { 
+            padding: 15px; 
+            margin: 20px 0; 
+            border-radius: 10px; 
+            font-weight: bold; 
+            background: #e3f2fd; 
+        }
+        input, button { 
+            width: 100%; 
+            padding: 12px; 
+            margin: 10px 0; 
+            border-radius: 8px; 
+            font-size: 16px; 
+        }
+        button { background: #4CAF50; color: white; border: none; cursor: pointer; }
+        .obs-url { 
+            background: #fff3e0; 
+            padding: 15px; 
+            border-radius: 10px; 
+            font-family: monospace; 
+            word-break: break-all;
+        }
+    </style>
 </head>
 <body>
-    <div class="container">
-        <h1>📱 Celular → 💻 PC + OBS</h1>
-        <div id="status">Listo</div>
-        
-        <div class="controls">
-            <div class="mode-selector">
-                <button id="mobileMode" class="mode-btn active">📱 CELULAR (envía)</button>
-                <button id="pcMode" class="mode-btn">💻 PC (recibe)</button>
-            </div>
-            
-            <div id="mobileControls">
-                <input id="customId" value="MIVIDEO" placeholder="ID fijo">
-                <button id="startBtn">▶️ Iniciar stream</button>
-                <div class="obs-url">
-                    <strong>URL para OBS:</strong> 
-                    <input id="obsUrl" readonly placeholder="Se genera aquí">
-                    <button onclick="copyObsUrl()">📋 Copiar</button>
-                </div>
-            </div>
-            
-            <div id="pcControls" style="display:none;">
-                <input id="connectId" value="MIVIDEO" placeholder="ID del celular">
-                <button id="connectBtn">Conectar</button>
-            </div>
-        </div>
-        
-        <div class="videos">
-            <video id="localVideo" class="video local" autoplay muted playsinline></video>
-            <video id="remoteVideo" class="video remote" autoplay playsinline></video>
-        </div>
+    <h1>📱 Celular → 💻 OBS</h1>
+    <div id="status">Iniciando...</div>
+    
+    <input id="customId" value="CEL123" placeholder="ID único">
+    <button id="startBtn">▶️ Iniciar cámara</button>
+    
+    <div class="obs-url" id="obsSection" style="display:none;">
+        <strong>URL para OBS:</strong><br>
+        <input id="obsUrl" readonly>
+        <br><button onclick="copyObsUrl()">📋 Copiar</button>
     </div>
+    
+    <video id="localVideo" autoplay muted playsinline style="display:none;"></video>
 
-    <script src="app.js"></script>
+    <script>
+        let peer = null;
+        let localStream = null;
+        const status = document.getElementById('status');
+
+        function initPeer() {
+            const customId = document.getElementById('customId').value || 'CEL123';
+            
+            if (peer) peer.destroy();
+            
+            status.textContent = '🔄 Conectando peer...';
+            
+            peer = new Peer(customId, {
+                host: '0.peerjs.com',
+                port: 443,
+                path: '/peerjs'
+            });
+
+            peer.on('open', (id) => {
+                status.textContent = `✅ Listo! ID: ${id}`;
+                document.getElementById('obsSection').style.display = 'block';
+                updateObsUrl(id);
+                
+                // listener UNA SOLA VEZ
+                peer.on('call', handleCall);
+            });
+
+            peer.on('error', (err) => {
+                console.error('Peer error:', err);
+                if (err.type === 'unavailable-id') {
+                    status.textContent = '❌ ID OCUPADO - Cambia ID';
+                } else {
+                    status.textContent = `❌ Error: ${err.type}`;
+                }
+            });
+        }
+
+        function handleCall(call) {
+            console.log('📞 Llamada recibida');
+            navigator.mediaDevices.getUserMedia({ 
+                video: { width: 1280, height: 720 }, 
+                audio: true 
+            }).then(stream => {
+                localStream = stream;
+                document.getElementById('localVideo').srcObject = stream;
+                document.getElementById('localVideo').style.display = 'block';
+                call.answer(stream);
+                
+                status.textContent = '✅ Transmitiendo a OBS/PC';
+            }).catch(err => {
+                status.textContent = '❌ Cámara denegada';
+                console.error(err);
+            });
+        }
+
+        function updateObsUrl(id) {
+            const obsUrl = `https://leo-casbas.github.io/movil/obs.html?id=${id}`;
+            document.getElementById('obsUrl').value = obsUrl;
+        }
+
+        document.getElementById('startBtn').onclick = () => {
+            initPeer(); // Inicializa peer y espera llamada
+        };
+
+        document.getElementById('customId').oninput = initPeer;
+
+        function copyObsUrl() {
+            navigator.clipboard.writeText(document.getElementById('obsUrl').value);
+            alert('✅ URL copiada');
+        }
+
+        // Auto-iniciar
+        initPeer();
+    </script>
 </body>
 </html>
