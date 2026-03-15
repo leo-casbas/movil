@@ -1,34 +1,64 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Video P2P para OBS</title>
+    <title>Video P2P OBS</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         body { margin: 0; background: black; overflow: hidden; }
         #video { width: 100vw; height: 100vh; object-fit: contain; }
+        #status { position: fixed; top: 10px; left: 10px; color: white; font-family: monospace; }
     </style>
 </head>
 <body>
-    <video id="video" autoplay playsinline muted></video>
+    <video id="video" autoplay muted playsinline></video>
+    <div id="status">Conectando...</div>
     
     <script>
         const urlParams = new URLSearchParams(window.location.search);
         const mobileId = urlParams.get('id') || 'MIVIDEO';
+        const status = document.getElementById('status');
         
-        const peer = new Peer({
-            host: '0.peerjs.com', port: 443, path: '/peerjs'
+        const peer = new Peer(null, {
+            host: '0.peerjs.com', 
+            port: 443, 
+            path: '/peerjs',
+            config: {
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { 
+                        urls: 'turn:turn.numb.viagenie.ca',
+                        username: 'lucaslopezrp@gmail.com',
+                        credential: 'moilegr1989@'
+                    }
+                ]
+            }
         });
 
         peer.on('open', (id) => {
-            console.log('PC ID:', id, 'Conectando a celular:', mobileId);
-            navigator.mediaDevices.getUserMedia({video: false, audio: false })
-                .then(() => {
-                    const call = peer.call(mobileId, new MediaStream());
-                    call.on('stream', (remoteStream) => {
-                        document.getElementById('video').srcObject = remoteStream;
-                    });
-                });
+            status.textContent = `ID: ${id} → ${mobileId}`;
+            connectToMobile();
         });
+
+        peer.on('disconnected', () => {
+            status.textContent = '🔄 Reconectando...';
+            setTimeout(connectToMobile, 2000);
+        });
+
+        peer.on('error', (err) => {
+            status.textContent = `Error: ${err.type}`;
+        });
+
+        function connectToMobile() {
+            const call = peer.call(mobileId, new MediaStream());
+            call.on('stream', (remoteStream) => {
+                status.textContent = '✅ Stream OK';
+                document.getElementById('video').srcObject = remoteStream;
+                setTimeout(() => status.textContent = 'Live', 2000);
+            });
+            call.on('error', (err) => {
+                status.textContent = `Call error: ${err.type}`;
+            });
+        }
     </script>
 </body>
 </html>
