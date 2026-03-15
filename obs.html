@@ -3,7 +3,7 @@
 <head>
     <title>OBS Stream</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <style>
+    <style> 
         body { margin: 0; background: black; overflow: hidden; }
         #video { width: 100vw; height: 100vh; object-fit: contain; }
     </style>
@@ -13,34 +13,28 @@
     
     <script>
         const urlParams = new URLSearchParams(window.location.search);
-        const mobileId = urlParams.get('id') || 'MIVIDEO';
+        const mobileId = urlParams.get('id') || 'CEL123';
         
         console.log('Conectando a:', mobileId);
         
         const peer = new Peer(null, {
             host: '0.peerjs.com',
             port: 443,
-            path: '/peerjs',
-            debug: 2
+            path: '/peerjs'
         });
         
         peer.on('open', (id) => {
             console.log('PC lista:', id);
-            // Llama inmediatamente al celular
             const call = peer.call(mobileId, new MediaStream());
             
             call.on('stream', (remoteStream) => {
-                console.log('✅ Video recibido');
+                console.log('✅ Video OK');
                 document.getElementById('video').srcObject = remoteStream;
             });
             
             call.on('error', (err) => {
                 console.error('Call error:', err);
             });
-        });
-        
-        peer.on('error', (err) => {
-            console.error('Peer error:', err);
         });
     </script>
 </body>
