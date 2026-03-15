@@ -2,80 +2,95 @@
 <html>
 <head>
     <title>Celular → OBS</title>
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        body { margin: 0; font-family: Arial; text-align: center; background: #222; color: white; }
-        #container { max-width: 400px; margin: auto; padding: 20px; }
-        input, button { width: 100%; padding: 15px; margin: 10px 0; font-size: 18px; }
-        button { background: #4CAF50; color: white; border: none; border-radius: 5px; }
-        #status { padding: 15px; background: #333; border-radius: 5px; margin: 20px 0; }
-        #video { width: 100%; height: 300px; background: #000; border-radius: 10px; }
-        #obsUrl { background: #444; color: #fff; font-family: monospace; }
+        body { margin: 0; font-family: Arial; text-align: center; background: #222; color: white; padding: 20px; }
+        #container { max-width: 400px; margin: auto; }
+        input, button { width: 100%; padding: 15px; margin: 10px 0; font-size: 18px; border-radius: 8px; }
+        button { background: #4CAF50; color: white; border: none; cursor: pointer; }
+        #status { padding: 15px; background: #333; border-radius: 8px; margin: 20px 0; font-weight: bold; }
+        #video { width: 100%; height: 300px; background: black; border-radius: 10px; margin-top: 20px; }
+        #obsUrl { background: #444; color: #fff; font-family: monospace; font-size: 14px; }
     </style>
 </head>
 <body>
     <div id="container">
         <h1>📱 Celular → OBS</h1>
-        <div id="status">Iniciando...</div>
+        <div id="status">Iniciando WebRTC...</div>
         
-        <input id="peerId" value="CEL123" placeholder="ID único">
-        <button id="startCamera">▶️ Permitir cámara</button>
+        <input id="roomId" value="ROOM1" placeholder="ID de sala">
+        <button onclick="startStream()">▶️ Iniciar cámara</button>
         
         <div id="obsInfo" style="display:none;">
-            <strong>URL para OBS:</strong><br>
+            <strong>URL OBS:</strong><br>
             <input id="obsUrl" readonly>
             <button onclick="copyUrl()">📋 Copiar</button>
         </div>
         
-        <video id="video" autoplay playsinline muted></video>
+        <video id="localVideo" autoplay playsinline muted></video>
     </div>
 
     <script>
-        let peer = null;
-        let localStream = null;
-        const status = document.getElementById('status');
+        let localStream;
+        let pc;
+        const config = {
+            iceServers: [{urls: 'stun:stun.l.google.com:19302'}]
+        };
 
-        document.getElementById('startCamera').onclick = async () => {
+        async function startStream() {
+            const status = document.getElementById('status');
+            const roomId = document.getElementById('roomId').value || 'ROOM1';
+            
             try {
                 status.textContent = '🔄 Obteniendo cámara...';
                 
-                // 1. PRIMERO cámara
-                localStream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { width: 1280, height: 720 }, 
-                    audio: true 
+                // 1. Cámara
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: 1280, height: 720 },
+                    audio: true
                 });
                 
-                document.getElementById('video').srcObject = localStream;
-                status.textContent = '✅ Cámara OK. Creando peer...';
+                document.getElementById('localVideo').srcObject = localStream;
+                status.textContent = '✅ Cámara activa. Esperando OBS...';
                 
-                // 2. LUEGO peer
-                const id = document.getElementById('peerId').value || 'CEL123';
-                peer = new Peer(id, {
-                    host: '0.peerjs.com',
-                    port: 443,
-                    path: '/peerjs'
-                });
-                
-                peer.on('open', (peerId) => {
-                    status.textContent = `✅ Listo! ID: ${peerId}`;
-                    document.getElementById('obsInfo').style.display = 'block';
-                    document.getElementById('obsUrl').value = `https://leo-casbas.github.io/movil/obs.html?id=${peerId}`;
-                });
-                
-                // 3. Escucha llamadas de OBS/PC
-                peer.on('call', (call) => {
-                    status.textContent = '📞 OBS conectado!';
-                    call.answer(localStream); // YA tiene stream listo
-                });
+                // 2. Configurar signaling manual
+                document.getElementById('obsInfo').style.display = 'block';
+                document.getElementById('obsUrl').value = `https://leo-casbas.github.io/movil/obs.html?room=${roomId}`;
                 
             } catch(err) {
-                status.textContent = '❌ Error cámara: ' + err.message;
+                status.textContent = '❌ Cámara: ' + err.message;
             }
-        };
+        }
+
+        // Signaling manual via URL params
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('signal')) {
+            const signal = JSON.parse(atob(urlParams.get('signal')));
+            handleOffer(signal);
+        }
+
+        async function handleOffer(offer) {
+            pc = new RTCPeerConnection(config);
+            
+            localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+            
+            pc.onicecandidate = (event) => {
+                if (event.candidate) {
+                    console.log('ICE candidate enviado');
+                }
+            };
+            
+            await pc.setRemoteDescription(offer);
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            
+            // Redirigir con respuesta
+            const newUrl = `obs.html?room=${document.getElementById('roomId').value}&signal=${btoa(JSON.stringify(pc.localDescription))}`;
+            window.location.href = newUrl;
+        }
 
         function copyUrl() {
             navigator.clipboard.writeText(document.getElementById('obsUrl').value);
-            status.textContent = '✅ URL copiada!';
+            document.getElementById('status').textContent = '✅ URL copiada!';
         }
     </script>
 </body>
