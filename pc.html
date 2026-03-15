@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PC Receptor - Capturar con OBS</title>
+    <style>
+        body { margin: 0; background: #000; overflow: hidden; font-family: Arial; }
+        #video { width: 100vw; height: 100vh; object-fit: contain; }
+        #status { position: fixed; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.7); padding: 10px; }
+        #roomId { position: fixed; bottom: 10px; left: 10px; background: rgba(0,0,0,0.8); color: white; padding: 10px; }
+    </style>
+</head>
+<body>
+    <video id="video" autoplay playsinline></video>
+    <div id="status">Esperando celular...</div>
+    <div id="roomId">ID: <span id="currentId"></span></div>
+
+    <script>
+        const pc = new RTCPeerConnection({
+            iceServers: [{urls: 'stun:stun.l.google.com:19302'}]
+        });
+        
+        const video = document.getElementById('video');
+        const status = document.getElementById('status');
+        
+        // Generar ID único
+        const roomId = Math.random().toString(36).substr(2, 8).toUpperCase();
+        document.getElementById('currentId').textContent = roomId;
+        
+        // QR code para celular (opcional)
+        status.innerHTML += `<br>ID para celular: <strong>${roomId}</strong>`;
+        
+        pc.ontrack = (event) => {
+            console.log('✅ Celular conectado');
+            status.textContent = '✅ Celular transmitiendo';
+            video.srcObject = event.streams[0];
+        };
+        
+        // WebSocket simple para signaling (usa un servicio gratis)
+        const ws = new WebSocket('wss://simple-webrtc-server.fly.dev');
+        
+        ws.onopen = () => {
+            status.textContent = `Listo. ID: ${roomId}. Muestra en celular.`;
+            ws.send(JSON.stringify({type: 'offer', room: roomId, target: 'pc'}));
+        };
+        
+        ws.onmessage = async (event) => {
+            const data = JSON.parse(event.data);
+            if (data.type === 'answer' && data.room === roomId) {
+                await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+            }
+        };
+    </script>
+</body>
+</html>
